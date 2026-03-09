@@ -75,3 +75,28 @@
       (is (str/includes? result "baz qux")))
     (testing "contains related message"
       (is (str/includes? result "defined here")))))
+
+(deftest meta-at-test
+  (is (= "abc" (ifu/meta-at {:port "abc"} [:port])))
+  (is (= :b (ifu/meta-at [:a :b :c] [1])))
+  (is (= 42 (ifu/meta-at {:x [{:y 42}]} [:x 0 :y])))
+  (is (nil? (ifu/meta-at {:a 1} [:b]))))
+
+(deftest diagnostics-transducer-test
+  (let [parsed (with-meta {:port "abc"} {:row 1 :col 1 :end-col 14})
+        errors [{:in [:port] :message "should be an integer"}]
+        diags  (into [] (ifu/diagnostics parsed "{:port \"abc\"}" "f.edn") errors)]
+    (is (= 1 (count diags)))
+    (is (= "f.edn" (:file (first diags))))
+    (is (= "should be an integer" (:message (first diags))))))
+
+(deftest parse-returns-data-when-valid
+  (is (= {:port 8080}
+         (ifu/parse "{:port 8080}" "f" (constantly nil)))))
+
+(deftest parse-throws-on-invalid
+  (let [ex (try (ifu/parse "{:port \"abc\"}" "config.edn"
+                  (fn [_] [{:in [:port] :message "should be int"}]))
+               (catch #?(:clj Exception :cljs :default) e e))]
+    (is (str/includes? (ex-message ex) "config.edn"))
+    (is (seq (:diagnostics (ex-data ex))))))

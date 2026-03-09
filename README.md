@@ -83,8 +83,54 @@ Point to other locations that help explain the error:
                         :message "defined here"}]})
 ```
 
+## Validating EDN files
+
+`ifu/parse` parses an EDN string with source positions and validates it. It returns the parsed data if valid, or throws an `ex-info` with rendered diagnostics if not.
+
+It takes a validator function `(fn [data] -> [{:in [:path] :message "..."}] | nil)`, so it works with any validation library.
+
+### With malli
+
+Require `ifu.malli` (you need `metosin/malli` in your own deps):
+
+```clojure
+(require '[ifu.core :as ifu]
+         '[ifu.malli :as ifu-malli])
+
+(ifu/parse "{:port \"abc\"}" "config.edn"
+  (ifu-malli/validator [:map [:port :int]]))
+```
+
+### With spec
+
+Require `ifu.spec`:
+
+```clojure
+(require '[ifu.core :as ifu]
+         '[ifu.spec :as ifu-spec]
+         '[clojure.spec.alpha :as s])
+
+(s/def ::port int?)
+(s/def ::config (s/keys :req-un [::port]))
+
+(ifu/parse "{:port \"abc\"}" "config.edn"
+  (ifu-spec/validator ::config))
+```
+
+### Custom validator
+
+Any function that returns a seq of `{:in path :message msg}` maps works:
+
+```clojure
+(ifu/parse "{:port -1}" "config.edn"
+  (fn [data]
+    (when (neg? (:port data))
+      [{:in [:port] :message "port must be positive"}])))
+```
+
 ## Running tests
 
 ```
-bb test
+bb test              # core tests only
+clojure -M:test      # all tests (including malli/spec)
 ```

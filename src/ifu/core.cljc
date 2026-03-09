@@ -1,5 +1,6 @@
 (ns ifu.core
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [edamame.core :as eda]))
 
 (defn colorize [s code]
   (str "\033[" code "m" s "\033[0m"))
@@ -64,3 +65,46 @@
                 [(str rp " " rm)])))
           related)
         [""]))))
+
+(defn meta-at
+  "Follow a path through a parsed structure, returning the form at
+  that path (with its metadata)."
+  [parsed path]
+  (reduce
+    (fn [form seg]
+      (cond
+        (and (map? form) (keyword? seg)) (get form seg)
+        (and (sequential? form) (int? seg)) (nth form seg nil)
+        :else (reduced nil)))
+    parsed path))
+
+(defn diagnostics
+  "Transducer from {:in path :message string} errors to ifu diagnostic
+  maps. parsed should carry source-position metadata (e.g. from
+  edamame with {:all true})."
+  [parsed source file]
+  (map
+    (fn [{:keys [in message]}]
+      (let [form   (when (seq in) (meta-at parsed in))
+            parent (when (> (count in) 1) (meta-at parsed (butlast in)))
+            m      (or (meta form) (meta parent) (meta parsed))]
+        {:file    file
+         :source  source
+         :row     (or (:row m) 1)
+         :col     (or (:col m) 1)
+         :end-col (:end-col m)
+         :message message}))))
+
+(defn parse
+  "Parse an EDN string and validate it. Returns parsed data if valid,
+  throws ex-info with rendered diagnostics if not.
+
+  validator is (fn [data] -> [{:in [:path] :message \"...\"}] | nil)."
+  [source file validator]
+  (let [parsed (eda/parse-string source {:all true})
+        errors (validator parsed)
+        diags  (into [] (diagnostics parsed source file) errors)]
+    (if (seq diags)
+      (throw (ex-info (str/join "\n" (map render diags))
+                      {:diagnostics diags}))
+      parsed)))
