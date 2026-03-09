@@ -1,5 +1,7 @@
 # ifu
 
+[![Clojars Project](https://img.shields.io/clojars/v/io.github.socksy/ifu.svg)](https://clojars.org/io.github.socksy/ifu)
+
 Miette-style diagnostic rendering for Clojure/ClojureScript. Takes a map describing a source location and renders a coloured, annotated snippet to the terminal.
 
 ```
@@ -12,10 +14,10 @@ error: unexpected value
 
 ## Usage
 
-Add `ifu` to your deps (not yet on clojars — use git dep for now):
+Add `ifu` to your deps:
 
 ```clojure
-{:deps {io.github.yourname/ifu {:git/sha "..."}}}
+{:deps {io.github.socksy/ifu {:mvn/version "0.2.2"}}}
 ```
 
 Then call `render`:
