@@ -1,9 +1,16 @@
 (ns build
-  (:require [clojure.tools.build.api :as b]
+  (:require [clojure.string :as str]
+            [clojure.tools.build.api :as b]
             [deps-deploy.deps-deploy :as dd]))
 
 (def lib 'io.github.socksy/ifu)
-(def version (format "0.2.%s" (b/git-count-revs nil)))
+(def version
+  (let [tag (b/git-process {:git-args "describe --tags --abbrev=0"})
+        v (if (and tag (str/starts-with? tag "v"))
+            (subs tag 1)
+            tag)]
+    (assert v "No git tag found. Tag a release with e.g. `git tag v0.3.0`")
+    v))
 (def class-dir "target/classes")
 (def jar-file (format "target/%s-%s.jar" (name lib) version))
 (def basis (delay (b/create-basis {:project "deps.edn"})))
